@@ -1,0 +1,20 @@
+{
+  "name": "st-bot",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "repository": "https://github.com/matheus3301/st-bot.git",
+  "author": "Matheus Rocha <monteiromatheus.rocha@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "mongoose": "^5.10.17",
+    "telegraf": "^3.38.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.6"
+  }
+}
