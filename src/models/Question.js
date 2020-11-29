@@ -17,3 +17,5 @@ const schema = new Schema({
     required: true,
   },
 });
+
+module.exports = new model('Question', schema);

@@ -4,11 +4,13 @@ const { Telegraf } = require('telegraf');
 const session = require('telegraf/session');
 const Stage = require('telegraf/stage');
 const WizardScene = require('telegraf/scenes/wizard');
+const Extra = require('telegraf/extra');
 
 const mongoose = require('mongoose');
 
 const Student = require('./models/Student');
 const Code = require('./models/Code');
+const Question = require('./models/Question');
 
 dotenv.config();
 
@@ -49,11 +51,101 @@ const codeWizard = new WizardScene(
     return ctx.scene.leave();
   }
 );
-const stage = new Stage([codeWizard]);
+
+const answerWizard = new WizardScene(
+  'answer-wizard',
+  (ctx) => {
+    ctx.reply('Digite o numero da questão');
+    ctx.wizard.state.data = {};
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    ctx.wizard.state.data.number = ctx.message.text;
+
+    const question = await Question.findOne({
+      number: ctx.wizard.state.data.number,
+    });
+    if (!question) {
+      ctx.reply(`Questão inválida!🙃`);
+      return ctx.scene.leave();
+    }
+    ctx.wizard.state.data.question = question;
+    ctx.reply('Digite a resposta da pergunta');
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    ctx.wizard.state.data.userAnswer = ctx.message.text;
+
+    if (
+      ctx.wizard.state.data.userAnswer.toLowerCase() !=
+      ctx.wizard.state.data.question.answer.toLowerCase()
+    ) {
+      ctx.reply('Infelizmente a resposta está errada, tente novamente! 🥵');
+    } else {
+      student = await Student.findOne({
+        chat_id: ctx.update.message.chat.id,
+      });
+
+      if (student.answered_questions.includes(ctx.wizard.state.data.number)) {
+        ctx.reply('Você já respondeu essa pergunta!');
+      } else {
+        student.answered_questions.push(ctx.wizard.state.data.number);
+        student.save();
+        ctx.reply('Parabéns!!!🥳 Resposta correta!');
+      }
+    }
+
+    return ctx.scene.leave();
+  }
+);
+
+const createQuestionWizard = new WizardScene(
+  'create-question-wizard',
+  (ctx) => {
+    const questionArray = ctx.update.message.text.split(' ');
+    questionArray.shift();
+
+    ctx.wizard.state.data = {};
+    const questionNumber = questionArray.join(' ');
+    if (questionNumber.trim() == '') {
+      ctx.reply(`Digite um código válido 😬`);
+      return ctx.scene.leave();
+    }
+    ctx.wizard.state.data.number = questionNumber;
+    ctx.reply('Digite a url da imagem');
+    return ctx.wizard.next();
+  },
+  (ctx) => {
+    ctx.wizard.state.data.question = ctx.message.text;
+    ctx.reply('Digite a resposta da pergunta');
+
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    ctx.wizard.state.data.answer = ctx.message.text;
+
+    try {
+      const createdQuestion = await Question.create({
+        number: ctx.wizard.state.data.number,
+        question: ctx.wizard.state.data.question,
+        answer: ctx.wizard.state.data.answer,
+      });
+      console.log(createdQuestion);
+
+      ctx.reply('Questão criada com sucesso!🤩');
+    } catch (err) {
+      ctx.reply('Erro ao criar a questão ;-;');
+    }
+
+    return ctx.scene.leave();
+  }
+);
+
+const stage = new Stage([codeWizard, answerWizard, createQuestionWizard]);
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.catch((err, ctx) => {
-  // console.log(err);
+  console.log(err);
   ctx.reply('Esse não é um comando válido!😬');
 });
 bot.use(session());
@@ -80,6 +172,9 @@ bot.start(async (ctx) => {
 
 bot.command('codigo', async (ctx) => {
   ctx.scene.enter('code-wizard');
+});
+bot.command('responder', async (ctx) => {
+  ctx.scene.enter('answer-wizard');
 });
 //user commands end
 
@@ -141,6 +236,41 @@ bot.command('removecode', async (ctx) => {
     return ctx.reply('Código removido com sucesso!✅');
   }
   return ctx.reply('Código não encontrado! :(');
+});
+
+bot.command('createquestion', (ctx) => {
+  ctx.scene.enter('create-question-wizard');
+});
+
+bot.command('sendquestion', async (ctx) => {
+  const questionArray = ctx.update.message.text.split(' ');
+  questionArray.shift();
+
+  const questionNumber = questionArray.join(' ');
+  if (questionNumber.trim() == '') {
+    return ctx.reply(`Digite uma pergunta válida`);
+  }
+
+  const question = await Question.findOne({ number: questionNumber });
+  if (!question) {
+    return ctx.reply(`Digite uma pergunta válida`);
+  }
+
+  console.log(question);
+
+  const studentsList = await Student.find({});
+
+  ctx.reply(
+    `Enviando a mensagem para todos os ${studentsList.length} usuários cadastrados `
+  );
+
+  studentsList.forEach((student) => {
+    ctx.telegram.sendPhoto(
+      student.chat_id,
+      question.question,
+      Extra.caption(`ATENÇÃO: Pergunta número ${question.number}`)
+    );
+  });
 });
 //admin commands end
 

@@ -13,6 +13,7 @@ const schema = new Schema({
     required: true,
   },
   submited_codes: [String],
+  answered_questions: [Number],
 });
 
 module.exports = new model('Student', schema);
