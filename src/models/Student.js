@@ -12,6 +12,7 @@ const schema = new Schema({
     type: String,
     required: true,
   },
+  submited_codes: [String],
 });
 
 module.exports = new model('Student', schema);
