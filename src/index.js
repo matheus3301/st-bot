@@ -20,6 +20,8 @@ mongoose.connect(process.env.DATABASE_URL, {
   useCreateIndex: true,
 });
 
+var enigmaAnswer = 'RESPOSTA';
+
 const codeWizard = new WizardScene(
   'code-wizard',
   (ctx) => {
@@ -46,6 +48,41 @@ const codeWizard = new WizardScene(
       console.log(student);
     } else {
       ctx.reply('Código inválido!🥺');
+    }
+
+    return ctx.scene.leave();
+  }
+);
+
+const enigmaWizard = new WizardScene(
+  'enigma-wizard',
+  (ctx) => {
+    ctx.reply('Digite a resposta do enigma');
+    ctx.wizard.state.data = {};
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const userAnswer = ctx.message.text;
+    const studentsList = await Student.find({});
+
+    let winner;
+    studentsList.forEach((student) => {
+      if (student.has_solved_enigma) winner = student;
+    });
+
+    if (userAnswer.toLowerCase().trim() == enigmaAnswer.toLowerCase()) {
+      if (!winner) {
+        const student = await Student.findOne({
+          chat_id: ctx.update.message.chat.id,
+        });
+        student.has_solved_enigma = true;
+        await student.save();
+        ctx.reply('Parabéns, você foi o ganhador do enigma 🐂');
+      } else {
+        ctx.reply('Parabéns, você acertou! mas alguém acertou primeiro :(');
+      }
+    } else {
+      ctx.reply('Oppss, resposta errada :(');
     }
 
     return ctx.scene.leave();
@@ -172,7 +209,12 @@ const createQuestionWizard = new WizardScene(
   }
 );
 
-const stage = new Stage([codeWizard, answerWizard, createQuestionWizard]);
+const stage = new Stage([
+  codeWizard,
+  answerWizard,
+  createQuestionWizard,
+  enigmaWizard,
+]);
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.catch((err, ctx) => {
@@ -185,10 +227,17 @@ bot.use(stage.middleware());
 //user commands begin
 bot.start(async (ctx) => {
   let student;
+  console.log(ctx.update);
   try {
+    let name =
+      ctx.update.message.chat.first_name +
+      ' ' +
+      ctx.update.message.chat.last_name;
+
     student = await Student.create({
       chat_id: ctx.update.message.chat.id,
-      first_name: ctx.update.message.chat.first_name,
+      name,
+      username: ctx.update.message.chat.username,
     });
     console.log('Novo usuário', ctx.update.message.chat);
   } catch (err) {
@@ -197,7 +246,7 @@ bot.start(async (ctx) => {
     });
   }
   return ctx.reply(
-    `Bem vindo à XV Semana da Tecnologia, ${student.first_name} 🚀\n\nPor aqui que realizaremos a dinâmica do Tesouro Secreto e eu serei o seu guia.\n\nEm todas as palestras liberaremos um código onde o participante deve vir aqui e cadastrar o código. Depois da última apresentação no sábado (05/12), para todos que coletaram todas as chaves durante as palestras, liberaremos 3 desafios de lógica para decidirmos quem será o vencedor da dinâmica. Vai perder essa?\n\nPara mais informações, confira: https://www.instagram.com/stecnologiaufc/ \n\nComandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n`
+    `Bem vindo à XV Semana da Tecnologia, ${student.name} 🚀\n\nPor aqui que realizaremos a dinâmica do Tesouro Secreto e eu serei o seu guia.\n\nEm todas as palestras liberaremos um código onde o participante deve vir aqui e cadastrar o código. Depois da última apresentação no sábado (05/12), para todos que coletaram todas as chaves durante as palestras, liberaremos 3 desafios de lógica para decidirmos quem será o vencedor da dinâmica. Vai perder essa?\n\nPara mais informações, confira: https://www.instagram.com/stecnologiaufc/ \n\nComandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n - /enigmaredbull : Responder o enigma`
   );
 });
 
@@ -207,6 +256,11 @@ bot.command('codigo', async (ctx) => {
 bot.command('responder', async (ctx) => {
   ctx.scene.enter('answer-wizard');
 });
+
+bot.command('enigmaredbull', async (ctx) => {
+  ctx.scene.enter('enigma-wizard');
+});
+
 //user commands end
 
 //admin commands begin
@@ -303,6 +357,41 @@ bot.command('sendquestion', async (ctx) => {
       Extra.caption(`🙀 QUESTÃO Nº${question.number} LIBERADA 🙀`)
     );
   });
+});
+
+bot.command('getquestionswinner', async (ctx) => {
+  const studentsList = await Student.find({});
+  const questionsList = await Question.find({});
+
+  let winner;
+
+  studentsList.forEach((student) => {
+    if (student.answered_questions.length == questionsList.length)
+      winner = student;
+  });
+
+  if (winner) {
+    return ctx.reply(
+      `O vencedor do Jogo de Perguntas e Respostas foi:\n * ${winner.name} - @${winner.username}`
+    );
+  }
+  return ctx.reply('Ninguém respondeu todas as questões até agora!');
+});
+
+bot.command('getenigmawinner', async (ctx) => {
+  const studentsList = await Student.find({});
+  let winner;
+
+  studentsList.forEach((student) => {
+    if (student.has_solved_enigma) winner = student;
+  });
+
+  if (winner) {
+    return ctx.reply(
+      `O vencedor do Enigma foi:\n * ${winner.name} - @${winner.username}`
+    );
+  }
+  return ctx.reply('Ninguém respondeu o enigma até agora!');
 });
 //admin commands end
 

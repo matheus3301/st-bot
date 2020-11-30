@@ -6,3 +6,5 @@
 - /removecode 'codigo' : Deleta um código
 - /createquestion 'id' : Cria a questão de número 'id'
 - /sendquestion 'id' : Envia a questão de número 'id' para todos os usuários
+- /getquestionswinner : Retorna o primeiro usuário a responder todas as questões
+- /getenigmawinner : Retorna o vencedor do enigma redbull

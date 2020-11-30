@@ -8,12 +8,14 @@ const schema = new Schema({
     unique: true,
     sparse: true,
   },
-  first_name: {
+  name: {
     type: String,
     required: true,
   },
+  username: String,
   submited_codes: [String],
   answered_questions: [Number],
+  has_solved_enigma: Boolean,
 });
 
 module.exports = new model('Student', schema);
