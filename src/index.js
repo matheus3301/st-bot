@@ -54,7 +54,18 @@ const codeWizard = new WizardScene(
 
 const answerWizard = new WizardScene(
   'answer-wizard',
-  (ctx) => {
+  async (ctx) => {
+    const student = await Student.findOne({
+      chat_id: ctx.update.message.chat.id,
+    });
+
+    if (student.submited_codes.length < 3) {
+      ctx.reply(
+        'Opsss! Parece que você não está apto a participar das perguntas e respostas\nVocê precisa de no mínimo 3 códigos resgatados para participar do desafio😉'
+      );
+      return ctx.scene.leave();
+    }
+
     ctx.reply('Digite o numero da questão');
     ctx.wizard.state.data = {};
     return ctx.wizard.next();
@@ -82,16 +93,36 @@ const answerWizard = new WizardScene(
     ) {
       ctx.reply('Infelizmente a resposta está errada, tente novamente! 🥵');
     } else {
-      student = await Student.findOne({
+      const student = await Student.findOne({
         chat_id: ctx.update.message.chat.id,
       });
 
       if (student.answered_questions.includes(ctx.wizard.state.data.number)) {
         ctx.reply('Você já respondeu essa pergunta!');
       } else {
-        student.answered_questions.push(ctx.wizard.state.data.number);
-        student.save();
-        ctx.reply('Parabéns!!!🥳 Resposta correta!');
+        const questionsList = await Question.find({});
+        const studentsList = await Student.find({});
+        let winner;
+        studentsList.forEach((studentIn) => {
+          if (studentIn.answered_questions.length == questionsList.length) {
+            winner = studentIn;
+          }
+        });
+        if (!winner) {
+          student.answered_questions.push(ctx.wizard.state.data.number);
+          student.save();
+          ctx.reply('Parabéns!!!🥳 Resposta correta!');
+
+          if (student.answered_questions.length == questionsList.length) {
+            ctx.reply(
+              'Aeeeeee, você foi o ganhador do jogo de perguntas e respostas 🤑'
+            );
+          }
+        } else {
+          ctx.reply(
+            'Parabéns! Resposta correta, mas alguém já ganhou o jogo 🥺'
+          );
+        }
       }
     }
 
@@ -166,7 +197,7 @@ bot.start(async (ctx) => {
     });
   }
   return ctx.reply(
-    `Bem vindo à XV Semana da Tecnologia, ${student.first_name} 🚀\n\n Comandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n`
+    `Bem vindo à XV Semana da Tecnologia, ${student.first_name} 🚀\n\nPor aqui que realizaremos a dinâmica do Tesouro Secreto e eu serei o seu guia.\n\nEm todas as palestras liberaremos um código onde o participante deve vir aqui e cadastrar o código. Depois da última apresentação no sábado (05/12), para todos que coletaram todas as chaves durante as palestras, liberaremos 3 desafios de lógica para decidirmos quem será o vencedor da dinâmica. Vai perder essa?\n\nPara mais informações, confira: https://www.instagram.com/stecnologiaufc/ \n\nComandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n`
   );
 });
 
@@ -211,14 +242,15 @@ bot.command('createcode', async (ctx) => {
   }
 
   try {
-    var createdCode = await Code.create({
+    const createdCode = await Code.create({
       code,
     });
+    return ctx.reply(
+      `Código criado com sucesso!✅\nCódigo: ${createdCode.code}`
+    );
   } catch (err) {
     return ctx.reply(`Esse código já existe🤭`);
   }
-
-  return ctx.reply(`Código criado com sucesso!✅\nCódigo: ${createdCode.code}`);
 });
 
 bot.command('removecode', async (ctx) => {
@@ -268,7 +300,7 @@ bot.command('sendquestion', async (ctx) => {
     ctx.telegram.sendPhoto(
       student.chat_id,
       question.question,
-      Extra.caption(`ATENÇÃO: Pergunta número ${question.number}`)
+      Extra.caption(`🙀 QUESTÃO Nº${question.number} LIBERADA 🙀`)
     );
   });
 });
