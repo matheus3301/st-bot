@@ -35,7 +35,7 @@ const codeWizard = new WizardScene(
     const code = await Code.findOne({ code: ctx.wizard.state.data.code });
 
     if (code) {
-      student = await Student.findOne({
+      const student = await Student.findOne({
         chat_id: ctx.update.message.chat.id,
       });
       if (student.submited_codes.includes(ctx.wizard.state.data.code)) {
@@ -246,7 +246,7 @@ bot.start(async (ctx) => {
     });
   }
   return ctx.reply(
-    `Bem vindo à XV Semana da Tecnologia, ${student.name} 🚀\n\nPor aqui que realizaremos a dinâmica do Tesouro Secreto e eu serei o seu guia.\n\nEm todas as palestras liberaremos um código onde o participante deve vir aqui e cadastrar o código. Depois da última apresentação no sábado (05/12), para todos que coletaram todas as chaves durante as palestras, liberaremos 3 desafios de lógica para decidirmos quem será o vencedor da dinâmica. Vai perder essa?\n\nPara mais informações, confira: https://www.instagram.com/stecnologiaufc/ \n\nComandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n - /enigmaredbull : Responder o enigma`
+    `Bem vindo à XV Semana da Tecnologia, ${student.name} 🚀\n\nPor aqui que realizaremos a dinâmica do Tesouro Secreto e eu serei o seu guia.\n\nEm todas as palestras liberaremos um código onde o participante deve vir aqui e cadastrar o código. Depois da última apresentação no sábado (05/12), para todos que coletaram todas as chaves durante as palestras, liberaremos 3 desafios de lógica para decidirmos quem será o vencedor da dinâmica. Vai perder essa?\n\nPara mais informações, confira: https://www.instagram.com/stecnologiaufc/ \n\nComandos:\n - /responder : Responder uma das questões\n - /codigo : Usar um código\n`
   );
 });
 
